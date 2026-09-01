@@ -1,11 +1,6 @@
 package com.debajit.cubesolver.userinterface.screens
 
 import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
-import com.debajit.cubesolver.R
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -20,12 +15,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.debajit.cubesolver.solver.NativeSolver
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
+import com.debajit.cubesolver.R
 
 @Composable
 fun HomeScreen(
@@ -33,8 +28,6 @@ fun HomeScreen(
     isBluetoothConnected: Boolean,
     modifier: Modifier = Modifier
 ) {
-
-    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -44,7 +37,6 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
 
         verticalArrangement = Arrangement.Center
-
     ) {
 
         Text(
@@ -56,19 +48,12 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.rubiks_cube_logo),
+            painter = painterResource(R.drawable.rubiks_cube_logo),
             contentDescription = "Rubik's Cube",
-
             modifier = Modifier.height(160.dp),
-
             contentScale = ContentScale.Fit
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Scan your Rubik's Cube"
-        )
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -77,25 +62,6 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Scan Cube")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Button(
-            onClick = {
-
-                val result = NativeSolver.solveCube("dummy")
-
-                Toast.makeText(
-                    context,
-                    result,
-                    Toast.LENGTH_LONG
-                ).show()
-
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("JNI Test")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -126,9 +92,7 @@ fun HomeScreen(
                         "🔴 Bluetooth Disconnected",
                     fontSize = 16.sp
                 )
-
             }
         }
     }
-
 }

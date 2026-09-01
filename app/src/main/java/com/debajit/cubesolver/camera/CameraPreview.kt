@@ -13,14 +13,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.camera.core.ImageAnalysis
-import com.debajit.cubesolver.camera.analysis.FrameAnalyzer
+import androidx.camera.core.UseCase
 
 @Composable
 fun CameraPreview(
-    imageCapture: ImageCapture,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    imageCapture: ImageCapture? = null
 ) {
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -30,60 +30,54 @@ fun CameraPreview(
         }
     }
 
-    DisposableEffect(lifecycleOwner, imageCapture) {
-        val cameraProviderFuture =
+    DisposableEffect(Unit) {
+
+        val providerFuture =
             ProcessCameraProvider.getInstance(context)
 
-        cameraProviderFuture.addListener(
-            {
-                try {
-                    val cameraProvider = cameraProviderFuture.get()
+        providerFuture.addListener({
 
-                    val preview = Preview.Builder()
-                        .build()
-                        .also { cameraPreview ->
-                            cameraPreview.surfaceProvider =
-                                previewView.surfaceProvider
-                        }
+            val provider = providerFuture.get()
 
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setBackpressureStrategy(
-                            ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
-                        )
-                        .build()
+            val preview = Preview.Builder().build()
 
-                    imageAnalysis.setAnalyzer(
-                        ContextCompat.getMainExecutor(context),
-                        FrameAnalyzer()
-                    )
+            preview.surfaceProvider =
+                previewView.surfaceProvider
 
-                    cameraProvider.unbindAll()
 
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        imageCapture,
-                        imageAnalysis
-                    )
-                } catch (exception: Exception) {
-                    exception.printStackTrace()
-                }
-            },
-            ContextCompat.getMainExecutor(context)
-        )
+            provider.unbindAll()
+
+            val useCases = mutableListOf<UseCase>(preview)
+
+            imageCapture?.let {
+
+                useCases.add(it)
+
+            }
+
+            provider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                *useCases.toTypedArray()
+            )
+
+        }, ContextCompat.getMainExecutor(context))
 
         onDispose {
-            if (cameraProviderFuture.isDone) {
-                runCatching {
-                    cameraProviderFuture.get().unbindAll()
-                }
+
+            if (providerFuture.isDone) {
+
+                providerFuture.get().unbindAll()
+
             }
+
         }
+
     }
 
     AndroidView(
         factory = { previewView },
         modifier = modifier
     )
+
 }

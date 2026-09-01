@@ -7,120 +7,102 @@ import com.debajit.cubesolver.vision.ColorClassifier
 import com.debajit.cubesolver.vision.ColorConverter
 import com.debajit.cubesolver.vision.HsvColor
 import com.debajit.cubesolver.vision.RgbColor
-import com.debajit.cubesolver.vision.opencv.OpenCvProcessor
+import com.debajit.cubesolver.vision.sticker.StickerExtractor
 
+/**
+ * Result of analyzing a cube face bitmap.
+ */
+data class BitmapAnalysisResult(
+    val colors: List<CubeColor>,
+    val centerHsv: HsvColor
+)
+
+/**
+ * Utility to analyze bitmaps of Rubik's cube faces.
+ */
 object BitmapAnalyzer {
 
-    fun analyze(
-        bitmap: Bitmap
-    ): BitmapScanResult {
+    /**
+     * Analyzes a bitmap to extract colors and the HSV value of the center sticker.
+     */
+    fun analyze(bitmap: Bitmap): BitmapAnalysisResult {
+        val stickers = StickerExtractor.extract(bitmap)
+        val colors = stickers.mapIndexed { index, sticker ->
 
-        val enhancedBitmap = bitmap
+            val hsv = getAverageHsv(sticker.bitmap)
 
-        val width = enhancedBitmap.width
-        val height = enhancedBitmap.height
+            android.util.Log.d(
+                "BitmapAnalyzer",
+                "Sticker $index HSV = $hsv"
+            )
 
-        val gridSize = minOf(width, height) * 0.60f
+            val cubeColor = ColorClassifier.classify(hsv)
 
-        val left = (width - gridSize) / 2f
-        val top = (height - gridSize) / 2f
+            android.util.Log.d(
+                "BitmapAnalyzer",
+                "Sticker $index -> $cubeColor"
+            )
 
-        val cell = gridSize / 3f
-
-        val colors = mutableListOf<CubeColor>()
-
-        var centerHsv = HsvColor(
-            hue = 0f,
-            saturation = 0f,
-            value = 0f
-        )
-
-        for (row in 0..2) {
-
-            for (col in 0..2) {
-
-                val centerX =
-                    (left + cell * (col + 0.5f)).toInt()
-
-                val centerY =
-                    (top + cell * (row + 0.5f)).toInt()
-
-                val sampleRadius = (cell * 0.12f).toInt().coerceAtLeast(6)
-
-                val rgb = averageRgb(
-                    enhancedBitmap,
-                    centerX,
-                    centerY,
-                    sampleRadius
-                )
-
-                val hsv = ColorConverter.rgbToHsv(rgb)
-
-                if (row == 1 && col == 1) {
-                    centerHsv = hsv
-                }
-
-                val cubeColor =
-                    ColorClassifier.classify(hsv)
-
-                colors.add(cubeColor)
-            }
+            cubeColor
         }
 
-        return BitmapScanResult(
-            colors = colors,
-            centerHsv = centerHsv
-        )
+        // The 5th sticker (index 4) is the center one in a 3x3 grid
+        val centerSticker = stickers[4]
+        val centerHsv = getAverageHsv(centerSticker.bitmap)
+
+        return BitmapAnalysisResult(colors, centerHsv)
     }
 
-    private fun averageRgb(
-        bitmap: Bitmap,
-        centerX: Int,
-        centerY: Int,
-        radius: Int
-    ): RgbColor {
+    private fun getAverageHsv(bitmap: Bitmap): HsvColor {
 
-        var r = 0
-        var g = 0
-        var b = 0
-        var count = 0
+        var r = 0L
+        var g = 0L
+        var b = 0L
+        var count = 0L
 
-        val radiusSquared = radius * radius
+        val cx = bitmap.width / 2
+        val cy = bitmap.height / 2
 
-        for (y in centerY - radius..centerY + radius) {
+        val radius = minOf(bitmap.width, bitmap.height) / 3
 
-            if (y !in 0 until bitmap.height) continue
+        for (y in 0 until bitmap.height) {
 
-            for (x in centerX - radius..centerX + radius) {
+            for (x in 0 until bitmap.width) {
 
-                if (x !in 0 until bitmap.width) continue
+                val dx = x - cx
+                val dy = y - cy
 
-                val dx = x - centerX
-                val dy = y - centerY
+                if (dx * dx + dy * dy <= radius * radius) {
 
-                // Only sample pixels inside the circle
-                if (dx * dx + dy * dy > radiusSquared) {
-                    continue
+                    val pixel = bitmap.getPixel(x, y)
+
+                    r += Color.red(pixel).toLong()
+                    g += Color.green(pixel).toLong()
+                    b += Color.blue(pixel).toLong()
+
+                    count++
+
                 }
 
-                val pixel = bitmap.getPixel(x, y)
-
-                r += Color.red(pixel)
-                g += Color.green(pixel)
-                b += Color.blue(pixel)
-
-                count++
             }
+
         }
 
-        if (count == 0) {
-            return RgbColor(0, 0, 0)
+        if (count == 0L) {
+            return HsvColor(
+                hue = 0f,
+                saturation = 0f,
+                value = 0f
+            )
         }
 
-        return RgbColor(
-            r / count,
-            g / count,
-            b / count
+        val avgR = (r / count).toInt()
+        val avgG = (g / count).toInt()
+        val avgB = (b / count).toInt()
+
+        return ColorConverter.rgbToHsv(
+            RgbColor(avgR, avgG, avgB)
         )
+
     }
 }

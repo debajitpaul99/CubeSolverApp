@@ -6,26 +6,35 @@ object ColorClassifier {
 
     fun classify(hsv: HsvColor): CubeColor {
 
-        if (!CalibrationManager.isComplete()) {
-            return CubeColor.UNKNOWN
-        }
+        val h = hsv.hue
+        val s = hsv.saturation
+        val v = hsv.value
 
-        var bestColor = CubeColor.UNKNOWN
-        var bestDistance = Float.MAX_VALUE
+        // White
+        if (s < 0.25f && v > 0.35f)
+            return CubeColor.WHITE
 
-        CalibrationManager.allReferences().forEach { (color, reference) ->
+        // Red
+        if ((h >= 0f && h < 18f) || (h >= 335f && h <= 360f) || (h >= 18f && h < 23f && s > 0.75f))
+            return CubeColor.RED
 
-            val distance = ColorDistance.hsvDistance(
-                hsv,
-                reference
-            )
+        // Orange
+        if (h in 18f..42f)
+            return CubeColor.ORANGE
 
-            if (distance < bestDistance) {
-                bestDistance = distance
-                bestColor = color
-            }
-        }
+        // Yellow
+        if (h in 42f..78f)
+            return CubeColor.YELLOW
 
-        return bestColor
+        // Green
+        if (h in 78f..170f)
+            return CubeColor.GREEN
+
+        // Blue
+        if (h in 170f..265f)
+            return CubeColor.BLUE
+
+        return CubeColor.UNKNOWN
     }
+
 }

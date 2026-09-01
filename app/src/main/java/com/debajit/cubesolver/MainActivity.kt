@@ -14,11 +14,20 @@ import androidx.navigation.compose.rememberNavController
 import com.debajit.cubesolver.ui.theme.CubeSolverTheme
 import com.debajit.cubesolver.userinterface.screens.CameraScreen
 import com.debajit.cubesolver.userinterface.screens.HomeScreen
+import org.opencv.android.OpenCVLoader
+import com.debajit.cubesolver.userinterface.screens.EditableFaceScreen
+import com.debajit.cubesolver.userinterface.screens.SolverScreen
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (OpenCVLoader.initLocal()) {
+            android.util.Log.d("OpenCV", "OpenCV initialized")
+        } else {
+            android.util.Log.e("OpenCV", "OpenCV initialization failed")
+        }
 
         enableEdgeToEdge()
 
@@ -51,7 +60,53 @@ class MainActivity : ComponentActivity() {
 
                         composable("camera") {
 
-                            CameraScreen()
+                            CameraScreen(
+
+                                onScanFinished = {
+
+                                    navController.navigate("editFace")
+
+                                }
+
+                            )
+
+                        }
+
+                        composable("editFace") {
+
+                            EditableFaceScreen(
+
+                                onNextFace = {
+
+                                    navController.popBackStack()
+
+                                },
+
+                                onSolve = {
+
+                                    navController.navigate("solver") {
+
+                                        popUpTo("camera") {
+                                            inclusive = true
+                                        }
+
+                                    }
+
+                                },
+
+                                onRetake = {
+
+                                    navController.popBackStack()
+
+                                }
+
+                            )
+
+                        }
+
+                        composable("solver"){
+
+                            SolverScreen()
 
                         }
 

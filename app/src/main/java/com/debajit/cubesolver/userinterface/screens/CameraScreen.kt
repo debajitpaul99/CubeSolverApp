@@ -5,52 +5,37 @@ import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.debajit.cubesolver.camera.CameraPreview
 import com.debajit.cubesolver.camera.CubeOverlay
-import java.io.File
 import com.debajit.cubesolver.vision.bitmap.BitmapAnalyzer
-import com.debajit.cubesolver.model.CubeState
-import com.debajit.cubesolver.model.ScanSession
-import com.debajit.cubesolver.vision.CalibrationManager
-import com.debajit.cubesolver.model.FaceStorage
-import com.debajit.cubesolver.vision.cube.CubeAnalyzer
-import com.debajit.cubesolver.vision.opencv.OpenCvTest
+import java.io.File
+import com.debajit.cubesolver.model.CubeScanSession
+import com.debajit.cubesolver.vision.CubeColorReference
+
 
 @Composable
 fun CameraScreen(
+    onScanFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
 
-    android.util.Log.d(
-        "OpenCV",
-        OpenCvTest.version()
-    )
+    val context = LocalContext.current
 
     val imageCapture = remember {
         ImageCapture.Builder()
@@ -58,121 +43,101 @@ fun CameraScreen(
             .build()
     }
 
-    var capturedImagePath by remember {
-        mutableStateOf<String?>(null)
-    }
+    LiveCameraContent(
 
-    if (capturedImagePath == null) {
-        LiveCameraContent(
-            modifier = modifier,
-            imageCapture = imageCapture,
-            onImageCaptured = { savedPath ->
-                capturedImagePath = savedPath
-            }
-        )
-    } else {
-        CapturedFaceReview(
-            modifier = modifier,
-            imagePath = capturedImagePath!!,
-            onRetake = {
-                capturedImagePath = null
-            },
-            onConfirm = {
+        modifier = modifier,
 
-                val bitmap = BitmapFactory.decodeFile(capturedImagePath)
+        imageCapture = imageCapture,
 
-                if (bitmap == null) {
-                    Toast.makeText(
-                        context,
-                        "Could not read image",
-                        Toast.LENGTH_SHORT
-                    ).show()
+        onScanFinished = onScanFinished,
 
-                    return@CapturedFaceReview
-                }
+        onImageCaptured = { savedPath ->
 
-                val result = BitmapAnalyzer.analyze(bitmap)
+            CubeScanSession.capturedImagePath = savedPath
 
+            val bitmap = BitmapFactory.decodeFile(savedPath)
 
-                val scannedFace = ScanSession.currentFace()
+            if (bitmap == null) {
 
-                CalibrationManager.saveReference(
-                    scannedFace,
-                    result.centerHsv
-                )
+                Toast.makeText(
+                    context,
+                    "Could not read image",
+                    Toast.LENGTH_SHORT
+                ).show()
 
-                CubeState.saveFace(
-                    scannedFace,
-                    result.colors
-                )
-
-                FaceStorage.saveImage(
-                    scannedFace,
-                    capturedImagePath!!
-                )
-
-                val completed = CalibrationManager.calibratedFaces()
-
-                if (!ScanSession.isFinished()) {
-                    ScanSession.nextFace()
-                }
-
-                if (ScanSession.isFinished()) {
-
-                    val cube =
-                        CubeAnalyzer.analyzeCube()
-
-                    Toast.makeText(
-                        context,
-                        "Cube analyzed (${cube.size} faces)",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                } else {
-
-                    Toast.makeText(
-                        context,
-                        "Saved $scannedFace ($completed/6)",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                }
-
-                capturedImagePath = null
+                return@LiveCameraContent
 
             }
-        )
-    }
+
+            val result = BitmapAnalyzer.analyze(bitmap)
+
+            CubeScanSession.editingColors =
+                result.colors.toMutableList()
+
+            CubeColorReference.save(
+                CubeScanSession.currentFace,
+                result.centerHsv
+            )
+
+            onScanFinished()
+
+        }
+
+    )
+
 }
-
 @Composable
 private fun LiveCameraContent(
     imageCapture: ImageCapture,
     onImageCaptured: (String) -> Unit,
+    onScanFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        Text(
-            text = "Scan ${ScanSession.currentFace()} Face",
-            color = Color.White,
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 40.dp)
-        )
+                .padding(top = 40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Text(
+                text = "Step ${CubeScanSession.currentStep} of 6",
+                color = Color.LightGray
+            )
+
+            Text(
+                text = "Scan ${CubeScanSession.currentFace} Face",
+                color = Color.White
+            )
+
+            Text(
+                text = CubeScanSession.scanInstruction(),
+                color = Color.Yellow,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+        }
+
         CameraPreview(
+
             imageCapture = imageCapture,
+
             modifier = Modifier.fillMaxSize()
+
         )
 
         CubeOverlay(
             modifier = Modifier.fillMaxSize()
         )
+
 
         Column(
             modifier = Modifier
@@ -182,93 +147,36 @@ private fun LiveCameraContent(
         ) {
 
             Text(
-                text = "Face ${ScanSession.currentStep()} of 6",
+                text = "Face ${CubeScanSession.currentStep} of 6",
                 color = Color.White
             )
 
             Text(
-                text = "Center the ${ScanSession.currentFace()} face",
+                text = CubeScanSession.scanInstruction(),
                 color = Color.Yellow
             )
         }
 
         Button(
             onClick = {
+
                 captureCubeFace(
+
                     imageCapture = imageCapture,
+
                     context = context,
+
                     onImageCaptured = onImageCaptured
+
                 )
+
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(0.8f)
                 .padding(bottom = 40.dp)
         ) {
-            Text("Capture Face")
-        }
-    }
-}
-
-@Composable
-private fun CapturedFaceReview(
-    imagePath: String,
-    onRetake: () -> Unit,
-    onConfirm: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val bitmap = remember(imagePath) {
-        BitmapFactory.decodeFile(imagePath)
-    }
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Review Captured Face",
-            color = Color.White
-        )
-
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Captured cube face",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(vertical = 16.dp),
-                contentScale = ContentScale.Fit
-            )
-        } else {
-            Text(
-                text = "Could not load captured image",
-                color = Color.White,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = onRetake,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Retake")
-            }
-
-            Button(
-                onClick = onConfirm,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Confirm")
-            }
+            Text("Scan Face")
         }
     }
 }
