@@ -14,20 +14,55 @@ import androidx.navigation.compose.rememberNavController
 import com.debajit.cubesolver.ui.theme.CubeSolverTheme
 import com.debajit.cubesolver.userinterface.screens.CameraScreen
 import com.debajit.cubesolver.userinterface.screens.HomeScreen
-import org.opencv.android.OpenCVLoader
 import com.debajit.cubesolver.userinterface.screens.EditableFaceScreen
 import com.debajit.cubesolver.userinterface.screens.SolverScreen
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+
+    private val bluetoothPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+
+            // We can handle permission results later if needed.
+
+        }
+    //Bluetooth permission
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (OpenCVLoader.initLocal()) {
-            android.util.Log.d("OpenCV", "OpenCV initialized")
-        } else {
-            android.util.Log.e("OpenCV", "OpenCV initialization failed")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+
+            val permissions = arrayOf(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN
+            )
+
+            val missingPermission = permissions.any {
+
+                ContextCompat.checkSelfPermission(
+                    this,
+                    it
+                ) != PackageManager.PERMISSION_GRANTED
+
+            }
+
+            if (missingPermission) {
+
+                bluetoothPermissionLauncher.launch(
+                    permissions
+                )
+
+            }
+
         }
+
 
         enableEdgeToEdge()
 
@@ -53,7 +88,6 @@ class MainActivity : ComponentActivity() {
                                 onScanClick = {
                                     navController.navigate("camera")
                                 },
-                                isBluetoothConnected = false
                             )
 
                         }

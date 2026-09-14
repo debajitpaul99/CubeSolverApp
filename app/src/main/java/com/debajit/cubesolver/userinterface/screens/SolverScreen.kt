@@ -12,11 +12,16 @@ import androidx.compose.ui.unit.dp
 import com.debajit.cubesolver.network.RetrofitClient
 import com.debajit.cubesolver.network.SolveRequest
 import com.debajit.cubesolver.vision.CubeStringBuilder
+import com.debajit.cubesolver.bluetooth.BluetoothManager
 
 @Composable
 fun SolverScreen() {
 
     var solution by remember {
+        mutableStateOf("")
+    }
+
+    var protocol by remember {
         mutableStateOf("")
     }
 
@@ -43,9 +48,51 @@ fun SolverScreen() {
 
             if (response.isSuccessful) {
 
-                solution =
-                    response.body()?.solution
-                        ?: "No solution returned"
+                val body = response.body()
+
+                if (body != null)
+                {
+                    solution = body.solution
+
+                    protocol = body.protocol
+
+                    val bluetooth = BluetoothManager()
+
+                    val device = bluetooth.findCubeRobot()
+
+                    if (device != null)
+                    {
+                        if (bluetooth.connect(device))
+                        {
+                            bluetooth.send(protocol)
+
+                            bluetooth.disconnect()
+
+                            android.util.Log.d(
+                                "CubeSolver",
+                                "Protocol sent to ESP32"
+                            )
+                        }
+                        else
+                        {
+                            android.util.Log.e(
+                                "CubeSolver",
+                                "Failed to connect to CubeRobot"
+                            )
+                        }
+                    }
+                    else
+                    {
+                        android.util.Log.e(
+                            "CubeSolver",
+                            "CubeRobot not found"
+                        )
+                    }
+                }
+                else
+                {
+                    solution = "No solution returned"
+                }
 
             } else {
 
