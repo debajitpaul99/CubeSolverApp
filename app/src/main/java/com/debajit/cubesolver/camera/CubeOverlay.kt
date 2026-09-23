@@ -16,7 +16,7 @@ fun CubeOverlay(
 
     Canvas(modifier = modifier) {
 
-        val gridSize = size.minDimension * 0.60f
+        val gridSize = size.minDimension * 0.85f
 
         val left = (size.width - gridSize) / 2f
         val top = (size.height - gridSize) / 2f

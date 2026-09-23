@@ -45,7 +45,7 @@ fun EditableColorGrid(
 
                         modifier = Modifier
 
-                            .size(60.dp)
+                            .size(80.dp)
 
                             .background(
 
