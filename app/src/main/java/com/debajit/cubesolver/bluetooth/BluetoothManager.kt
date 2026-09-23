@@ -53,6 +53,10 @@ class BluetoothManager {
 
             disconnect()
 
+            val adapter = BluetoothAdapter.getDefaultAdapter()
+
+            adapter?.cancelDiscovery()
+
             socket =
                 device.createRfcommSocketToServiceRecord(
                     UUID_SPP
@@ -70,12 +74,13 @@ class BluetoothManager {
 
             e.printStackTrace()
 
+            disconnect()
+
             false
 
         }
 
     }
-
     fun send(
         text: String
     ): Boolean {

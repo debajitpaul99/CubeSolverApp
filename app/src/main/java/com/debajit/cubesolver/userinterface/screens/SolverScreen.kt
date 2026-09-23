@@ -13,6 +13,10 @@ import com.debajit.cubesolver.network.RetrofitClient
 import com.debajit.cubesolver.network.SolveRequest
 import com.debajit.cubesolver.vision.CubeStringBuilder
 import com.debajit.cubesolver.bluetooth.BluetoothManager
+import android.util.Log
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SolverScreen() {
@@ -28,6 +32,12 @@ fun SolverScreen() {
     var loading by remember {
         mutableStateOf(true)
     }
+
+    var sending by remember {
+        mutableStateOf(false)
+    }
+
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
 
@@ -55,39 +65,6 @@ fun SolverScreen() {
                     solution = body.solution
 
                     protocol = body.protocol
-
-                    val bluetooth = BluetoothManager()
-
-                    val device = bluetooth.findCubeRobot()
-
-                    if (device != null)
-                    {
-                        if (bluetooth.connect(device))
-                        {
-                            bluetooth.send(protocol)
-
-                            bluetooth.disconnect()
-
-                            android.util.Log.d(
-                                "CubeSolver",
-                                "Protocol sent to ESP32"
-                            )
-                        }
-                        else
-                        {
-                            android.util.Log.e(
-                                "CubeSolver",
-                                "Failed to connect to CubeRobot"
-                            )
-                        }
-                    }
-                    else
-                    {
-                        android.util.Log.e(
-                            "CubeSolver",
-                            "CubeRobot not found"
-                        )
-                    }
                 }
                 else
                 {
@@ -119,43 +96,41 @@ fun SolverScreen() {
             it.isNotBlank()
         }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
-    ) {
+    if (loading) {
 
-        Text(
-            text = "Cube Solution",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        if (loading) {
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                CircularProgressIndicator()
 
-                    CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(
-                        modifier = Modifier.height(16.dp)
-                    )
-
-                    Text("Solving Cube...")
-
-                }
+                Text("Solving Cube...")
 
             }
 
-        } else {
+        }
+
+    } else {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+        ) {
+
+            Text(
+                text = "Cube Solution",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "Total Moves: ${moves.size}",
@@ -164,7 +139,9 @@ fun SolverScreen() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            LazyColumn {
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
 
                 itemsIndexed(moves) { index, move ->
 
@@ -196,6 +173,74 @@ fun SolverScreen() {
                     }
 
                 }
+
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+
+                enabled = !sending && protocol.isNotBlank(),
+
+                onClick = {
+
+                    scope.launch {
+
+                        sending = true
+
+                        try {
+
+                            withContext(Dispatchers.IO) {
+
+                                val bluetooth = BluetoothManager()
+
+                                val device = bluetooth.findCubeRobot()
+
+                                if (device == null) {
+
+                                    Log.e("CubeSolver", "CubeRobot not found")
+                                    return@withContext
+
+                                }
+
+                                if (!bluetooth.connect(device)) {
+
+                                    Log.e("CubeSolver", "Connection failed")
+                                    return@withContext
+
+                                }
+
+                                bluetooth.send(protocol)
+
+                                bluetooth.disconnect()
+
+                            }
+
+                        } catch (e: Exception) {
+
+                            Log.e("CubeSolver", "Bluetooth Error", e)
+
+                        } finally {
+
+                            sending = false
+
+                        }
+
+                    }
+
+                }
+
+            ) {
+
+                Text(
+                    if (sending)
+                        "Sending..."
+                    else
+                        "Start Robot"
+                )
 
             }
 

@@ -11,15 +11,15 @@ object ColorClassifier {
         val v = hsv.value
 
         // White
-        if (s < 0.25f && v > 0.35f)
+        if (s < 0.22f && v > 0.45f)
             return CubeColor.WHITE
 
         // Red
-        if ((h >= 0f && h < 18f) || (h >= 335f && h <= 360f) || (h >= 18f && h < 23f && s > 0.75f))
+        if ((h < 15f || h >= 345f) && s > 0.45f)
             return CubeColor.RED
 
         // Orange
-        if (h in 18f..42f)
+        if (h in 15f..40f && s > 0.45f)
             return CubeColor.ORANGE
 
         // Yellow
